@@ -58,14 +58,28 @@ try:
     if uploaded_file.name.endswith((".xlsx", ".xls")):
         df = pd.read_excel(uploaded_file)
     else:
-        # Try common CSV delimiters
+        # Try common CSV delimiters, use python engine for robustness
         content = uploaded_file.getvalue().decode("utf-8", errors="replace")
+        best_df = None
         for sep in [";", ",", "\t"]:
-            df = pd.read_csv(
-                pd.io.common.StringIO(content), sep=sep, dtype=str
-            )
-            if len(df.columns) > 1:
-                break
+            try:
+                candidate = pd.read_csv(
+                    pd.io.common.StringIO(content),
+                    sep=sep,
+                    dtype=str,
+                    engine="python",
+                    on_bad_lines="skip",
+                )
+                if best_df is None or len(candidate.columns) > len(best_df.columns):
+                    best_df = candidate
+                if len(candidate.columns) > 1:
+                    break
+            except Exception:
+                continue
+        if best_df is not None:
+            df = best_df
+        else:
+            raise ValueError("Could not parse CSV with any common delimiter.")
 except Exception as e:
     st.error(f"Could not read file: {e}")
     st.stop()

@@ -1,6 +1,11 @@
 presets:
-- name: Mynt - Settlement Date
-  mapping:
-    Datum: Settlement date
-    Beskrivning: Description
+- mapping:
     Belopp: Amount
+    Beskrivning: Description
+    Datum: Settlement date
+  name: Mynt - Settlement Date
+- mapping:
+    Belopp: Amount
+    Beskrivning: Text
+    Datum: Date
+  name: Pleo
