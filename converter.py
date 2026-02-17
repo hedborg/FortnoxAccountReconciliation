@@ -4,6 +4,20 @@ import io
 import pandas as pd
 
 
+def _parse_numeric(series: pd.Series) -> pd.Series:
+    """Parse a string series into numeric, handling Unicode minus, Swedish decimals, etc."""
+    return pd.to_numeric(
+        series
+        .astype(str)
+        .str.replace("\u2212", "-", regex=False)  # Unicode minus → hyphen-minus
+        .str.replace("\u2013", "-", regex=False)  # en-dash → hyphen-minus
+        .str.replace("\xa0", "", regex=False)     # non-breaking space
+        .str.replace(" ", "", regex=False)        # regular space
+        .str.replace(",", ".", regex=False),      # Swedish decimal -> Python float
+        errors="coerce",
+    )
+
+
 def transform_data(
     df: pd.DataFrame,
     mapping: dict[str, str],
@@ -15,28 +29,25 @@ def transform_data(
         df: Source DataFrame from uploaded file.
         mapping: Dict mapping Fortnox field -> source column name,
                  e.g. {"Datum": "Date", "Beskrivning": "Text", "Belopp": "Amount"}
+                 Optional key "Fee" for a fee column to subtract.
         fx_rate: If set, multiply Belopp by this rate (foreign currency -> SEK).
 
     Returns:
         DataFrame with columns [Datum, Beskrivning, Belopp].
+        Belopp = (amount - fee) * fx_rate
     """
     result = pd.DataFrame()
 
-    result["Datum"] = pd.to_datetime(df[mapping["Datum"]], dayfirst=True).dt.strftime(
-        "%Y-%m-%d"
-    )
+    result["Datum"] = pd.to_datetime(
+        df[mapping["Datum"]], dayfirst=True, format="mixed"
+    ).dt.strftime("%Y-%m-%d")
     result["Beskrivning"] = df[mapping["Beskrivning"]].astype(str).str.strip()
 
-    belopp = pd.to_numeric(
-        df[mapping["Belopp"]]
-        .astype(str)
-        .str.replace("\u2212", "-", regex=False)  # Unicode minus → hyphen-minus
-        .str.replace("\u2013", "-", regex=False)  # en-dash → hyphen-minus
-        .str.replace("\xa0", "", regex=False)     # non-breaking space
-        .str.replace(" ", "", regex=False)        # regular space
-        .str.replace(",", ".", regex=False),      # Swedish decimal -> Python float
-        errors="coerce",
-    )
+    belopp = _parse_numeric(df[mapping["Belopp"]])
+
+    if "Fee" in mapping and mapping["Fee"]:
+        fee = _parse_numeric(df[mapping["Fee"]]).fillna(0)
+        belopp = belopp - fee.abs()
 
     if fx_rate is not None and fx_rate != 1.0:
         belopp = belopp * fx_rate

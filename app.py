@@ -17,6 +17,9 @@ from converter import transform_data, export_csv
 
 PRESETS_PATH = os.path.join(os.path.dirname(__file__), "presets.yaml")
 FORTNOX_FIELDS = ["Datum", "Beskrivning", "Belopp"]
+OPTIONAL_FIELDS = ["Fee"]
+ALL_MAPPING_FIELDS = FORTNOX_FIELDS + OPTIONAL_FIELDS
+DISPLAY_NAMES = {"Datum": "Date", "Beskrivning": "Description", "Belopp": "Amount", "Fee": "Fee"}
 
 
 # ── Preset helpers ──────────────────────────────────────────────────────────
@@ -110,7 +113,7 @@ if selected_preset != "(No preset)":
 assigned = {}
 available = list(source_columns)
 
-for field in FORTNOX_FIELDS:
+for field in ALL_MAPPING_FIELDS:
     preset_col = initial_mapping.get(field, "")
     if preset_col and preset_col in available:
         assigned[field] = [preset_col]
@@ -118,35 +121,44 @@ for field in FORTNOX_FIELDS:
     else:
         assigned[field] = []
 
-# Build the items structure for streamlit-sortables
+# Build the items structure for streamlit-sortables using display names
+display_to_internal = {v: k for k, v in DISPLAY_NAMES.items()}
 items = [
     {"header": "Available columns", "items": available},
 ]
-for field in FORTNOX_FIELDS:
-    items.append({"header": field, "items": assigned[field]})
+for field in ALL_MAPPING_FIELDS:
+    items.append({"header": DISPLAY_NAMES[field], "items": assigned[field]})
 
-st.caption("Drag column names from 'Available columns' to the correct Fortnox field.")
+st.caption("Drag column names from 'Available columns' to the correct field. Fee is optional — if mapped, Amount = (Amount − Fee) × FX rate.")
 
 sorted_items = sort_items(items, multi_containers=True, direction="horizontal")
 
-# Parse results back into a mapping dict
+# Parse results back into a mapping dict (convert display names back to internal)
+required_display = {DISPLAY_NAMES[f] for f in FORTNOX_FIELDS}
+optional_display = {DISPLAY_NAMES[f] for f in OPTIONAL_FIELDS}
 mapping = {}
 mapping_complete = True
 for group in sorted_items:
     header = group["header"] if isinstance(group, dict) else None
     group_items = group["items"] if isinstance(group, dict) else group
+    internal = display_to_internal.get(header)
 
-    if header in FORTNOX_FIELDS:
+    if header in required_display:
         if len(group_items) == 1:
-            mapping[header] = group_items[0]
+            mapping[internal] = group_items[0]
         elif len(group_items) == 0:
             mapping_complete = False
         else:
             st.warning(f"**{header}** can only have one column. Remove extras.")
             mapping_complete = False
+    elif header in optional_display:
+        if len(group_items) == 1:
+            mapping[internal] = group_items[0]
+        elif len(group_items) > 1:
+            st.warning(f"**{header}** can only have one column. Remove extras.")
 
 if not mapping_complete:
-    st.warning("All three Fortnox fields must have exactly one column mapped.")
+    st.warning("Date, Description and Amount must each have exactly one column mapped. Fee is optional.")
 
 # Save preset
 with st.expander("Save as new preset"):
@@ -218,7 +230,7 @@ try:
 
     # Date range filter
     st.subheader("Date filter")
-    dates = pd.to_datetime(result_df["Datum"], format="%Y-%m-%d")
+    dates = pd.to_datetime(result_df["Datum"])
     min_date = dates.min().date()
     max_date = dates.max().date()
 

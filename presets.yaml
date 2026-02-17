@@ -19,3 +19,9 @@ presets:
     Beskrivning: Description
     Datum: Date completed (UTC)
   name: Revolut
+- mapping:
+    Belopp: amount
+    Beskrivning: refid
+    Datum: time
+    Fee: fee
+  name: Kraken
