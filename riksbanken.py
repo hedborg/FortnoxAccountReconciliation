@@ -48,38 +48,46 @@ def _previous_month_end(reference_date: date) -> date:
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_fx_rate(currency: str, reference_date: date) -> float | None:
+def get_fx_rate(currency: str, reference_date: date) -> tuple[float | None, date | None]:
     """Fetch the closing FX rate from Riksbanken for the end of the previous month.
+
+    The API returns rates starting FROM the query date forward, so we query
+    from a few days before month-end and pick the last rate on or before
+    the actual month-end date.
 
     Args:
         currency: Currency code (e.g. "EUR", "USD")
         reference_date: The transaction date — rate will be fetched for
-                        the last business day of the previous month.
+                        the last available rate of the previous month.
 
     Returns:
-        The exchange rate (SEK per 1 unit of foreign currency), or None on failure.
+        Tuple of (rate, rate_date) or (None, None) on failure.
     """
     series_id = CURRENCY_SERIES.get(currency.upper())
     if not series_id:
-        return None
+        return None, None
 
     month_end = _previous_month_end(reference_date)
-    target_date = _last_business_day(month_end)
+    # Query from 10 days before month-end to ensure we capture the last trading day
+    query_from = month_end - timedelta(days=10)
 
-    # Try up to 5 business days back in case of holidays
-    for _ in range(5):
-        url = f"{BASE_URL}/Observations/{series_id}/{target_date.isoformat()}"
-        try:
-            resp = requests.get(url, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                if isinstance(data, list) and len(data) > 0:
-                    return float(data[0]["value"])
-                if isinstance(data, dict) and "value" in data:
-                    return float(data["value"])
-        except (requests.RequestException, ValueError, KeyError):
-            pass
-        target_date -= timedelta(days=1)
-        target_date = _last_business_day(target_date)
+    url = f"{BASE_URL}/Observations/{series_id}/{query_from.isoformat()}"
+    try:
+        resp = requests.get(url, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            if isinstance(data, list) and len(data) > 0:
+                # Find the last observation on or before month-end
+                best = None
+                for obs in data:
+                    obs_date = date.fromisoformat(obs["date"])
+                    if obs_date <= month_end:
+                        best = obs
+                    else:
+                        break  # dates are sorted ascending, no need to continue
+                if best:
+                    return float(best["value"]), date.fromisoformat(best["date"])
+    except (requests.RequestException, ValueError, KeyError):
+        pass
 
-    return None
+    return None, None

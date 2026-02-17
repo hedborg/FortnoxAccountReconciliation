@@ -56,7 +56,7 @@ def export_csv(df: pd.DataFrame) -> bytes:
 
     for _, row in df.iterrows():
         datum = row["Datum"]
-        beskrivning = str(row["Beskrivning"]).replace(";", ",")  # escape semicolons
+        beskrivning = str(row["Beskrivning"]).replace(";", ",")[:100]  # escape semicolons, max 100 chars
         belopp = f"{row['Belopp']:.2f}".replace(".", ",")
         lines.append(f"{datum};{beskrivning};{belopp}")
 

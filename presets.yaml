@@ -14,3 +14,8 @@ presets:
     Beskrivning: Detail
     Datum: Settlement Date
   name: Pleo - Running Balance Statement
+- mapping:
+    Belopp: Total amount
+    Beskrivning: Description
+    Datum: Date completed (UTC)
+  name: Revolut
