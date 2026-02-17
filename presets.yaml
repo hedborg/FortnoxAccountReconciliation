@@ -9,3 +9,8 @@ presets:
     Beskrivning: Text
     Datum: Date
   name: Pleo
+- mapping:
+    Belopp: Amount
+    Beskrivning: Detail
+    Datum: Settlement Date
+  name: Pleo - Running Balance Statement

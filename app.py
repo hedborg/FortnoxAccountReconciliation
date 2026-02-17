@@ -228,14 +228,13 @@ if mapping_complete and len(mapping) == 3:
         st.dataframe(filtered_df.head(20), use_container_width=True)
 
         # ── Step 5: Export ──────────────────────────────────────────────────
-        csv_str = export_csv(filtered_df)
-        preset_label = selected_preset if selected_preset != "(No preset)" else "Custom"
-        preset_label = preset_label.replace(" ", "_")
-        file_name = f"{preset_label}_{date_from.isoformat()}_{date_to.isoformat()}.csv"
+        csv_bytes = export_csv(filtered_df)
+        preset_label = selected_preset.split(" - ")[0].strip() if selected_preset != "(No preset)" else "Custom"
+        file_name = f"{preset_label}-{date_from.isoformat()}-{date_to.isoformat()}.csv"
 
         st.download_button(
             label="⬇️ Download Fortnox CSV",
-            data=csv_str.encode("utf-8"),
+            data=csv_bytes,
             file_name=file_name,
             mime="text/csv",
         )

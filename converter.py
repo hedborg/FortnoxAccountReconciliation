@@ -22,7 +22,7 @@ def transform_data(
     """
     result = pd.DataFrame()
 
-    result["Datum"] = pd.to_datetime(df[mapping["Datum"]], dayfirst=False).dt.strftime(
+    result["Datum"] = pd.to_datetime(df[mapping["Datum"]], dayfirst=True).dt.strftime(
         "%Y-%m-%d"
     )
     result["Beskrivning"] = df[mapping["Beskrivning"]].astype(str).str.strip()
@@ -30,9 +30,11 @@ def transform_data(
     belopp = pd.to_numeric(
         df[mapping["Belopp"]]
         .astype(str)
-        .str.replace("\xa0", "", regex=False)   # non-breaking space
-        .str.replace(" ", "", regex=False)       # regular space
-        .str.replace(",", ".", regex=False),     # Swedish decimal -> Python float
+        .str.replace("\u2212", "-", regex=False)  # Unicode minus → hyphen-minus
+        .str.replace("\u2013", "-", regex=False)  # en-dash → hyphen-minus
+        .str.replace("\xa0", "", regex=False)     # non-breaking space
+        .str.replace(" ", "", regex=False)        # regular space
+        .str.replace(",", ".", regex=False),      # Swedish decimal -> Python float
         errors="coerce",
     )
 
@@ -44,20 +46,21 @@ def transform_data(
     return result
 
 
-def export_csv(df: pd.DataFrame) -> str:
-    """Export DataFrame as Fortnox-compatible CSV string.
+def export_csv(df: pd.DataFrame) -> bytes:
+    """Export DataFrame as Fortnox-compatible CSV bytes.
 
-    Format: semicolon-separated, Swedish decimals (comma), UTF-8.
+    Format: semicolon-separated, Swedish decimals (comma),
+    UTF-8 with BOM, Windows line endings (CRLF).
     """
-    buf = io.StringIO()
-    buf.write("Datum;Beskrivning;Belopp\n")
+    lines = ["Datum;Ingående saldo-Beskrivning;Belopp"]
 
     for _, row in df.iterrows():
         datum = row["Datum"]
         beskrivning = str(row["Beskrivning"]).replace(";", ",")  # escape semicolons
         belopp = f"{row['Belopp']:.2f}".replace(".", ",")
-        buf.write(f"{datum};{beskrivning};{belopp}\n")
+        lines.append(f"{datum};{beskrivning};{belopp}")
 
-    buf.write("This will not be imported\n")
+    lines.append("This will not be imported")
 
-    return buf.getvalue()
+    content = "\r\n".join(lines) + "\r\n"
+    return b"\xef\xbb\xbf" + content.encode("utf-8")
