@@ -1,1 +1,6 @@
-presets: []
+presets:
+- name: Mynt - Settlement Date
+  mapping:
+    Datum: Settlement date
+    Beskrivning: Description
+    Belopp: Amount

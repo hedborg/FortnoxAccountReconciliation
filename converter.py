@@ -58,4 +58,6 @@ def export_csv(df: pd.DataFrame) -> str:
         belopp = f"{row['Belopp']:.2f}".replace(".", ",")
         buf.write(f"{datum};{beskrivning};{belopp}\n")
 
+    buf.write("This will not be imported\n")
+
     return buf.getvalue()
