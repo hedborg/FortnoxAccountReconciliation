@@ -250,7 +250,7 @@ try:
     # ── Step 5: Export ──────────────────────────────────────────────────
     csv_bytes = export_csv(filtered_df)
     preset_label = selected_preset.split(" - ")[0].strip() if selected_preset != "(No preset)" else "Custom"
-    file_name = f"{preset_label}-{date_from.isoformat()}-{date_to.isoformat()}.csv"
+    file_name = f"{preset_label}-{currency}-{date_from.isoformat()}-{date_to.isoformat()}.csv"
 
     st.download_button(
         label="⬇️ Download Fortnox CSV",
