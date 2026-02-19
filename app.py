@@ -63,16 +63,40 @@ try:
     else:
         # Try common CSV delimiters, use python engine for robustness
         content = uploaded_file.getvalue().decode("utf-8", errors="replace")
+        lines = content.splitlines()
+
+        def _find_header_row(lines, sep):
+            """Return the index of the row with the most columns (the real header)."""
+            import csv as _csv
+            col_counts = []
+            for line in lines:
+                if not line.strip():
+                    col_counts.append(0)
+                    continue
+                try:
+                    row = next(_csv.reader([line], delimiter=sep))
+                    col_counts.append(len(row))
+                except Exception:
+                    col_counts.append(0)
+            if not col_counts:
+                return 0
+            max_cols = max(col_counts)
+            return next((i for i, c in enumerate(col_counts) if c == max_cols), 0)
+
         best_df = None
         for sep in [";", ",", "\t"]:
             try:
+                skiprows = _find_header_row(lines, sep)
                 candidate = pd.read_csv(
                     pd.io.common.StringIO(content),
                     sep=sep,
+                    skiprows=skiprows,
                     dtype=str,
                     engine="python",
                     on_bad_lines="skip",
                 )
+                # Drop rows that are entirely empty (blank lines after header)
+                candidate.dropna(how="all", inplace=True)
                 if best_df is None or len(candidate.columns) > len(best_df.columns):
                     best_df = candidate
                 if len(candidate.columns) > 1:
