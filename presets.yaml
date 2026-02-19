@@ -25,3 +25,8 @@ presets:
     Datum: time
     Fee: fee
   name: Kraken
+- mapping:
+    Belopp: Belopp
+    Beskrivning: Meddelande
+    Datum: Datum
+  name: Svea
